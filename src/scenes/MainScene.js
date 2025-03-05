@@ -37,61 +37,137 @@ export default class MainScene extends Phaser.Scene {
     createDebugMenu() {
         // Left side - Control Panel
         const leftPanelWidth = 200;
-        const leftPanel = this.add.rectangle(0, 0, leftPanelWidth, this.game.config.height, 0x000000, 0.7);
+        const leftPanel = this.add.rectangle(116, 64, leftPanelWidth, this.game.config.height, 0x000000, 0.7);
         leftPanel.setOrigin(0, 0);
+        leftPanel.setInteractive({ draggable: true });
 
         const style = { fontSize: '32px', fill: '#fff' };
-        let yPos = 20;
+        let yPos = 84;
 
-        // Ball Speed Slider
-        this.add.text(10, yPos, 'Ball Speed:', style);
-        this.sliders.ballSpeed = this.add.rectangle(100, yPos + 15, 100, 10, 0x666666);
-        this.sliders.ballSpeed.setInteractive();
-        this.sliders.ballSpeed.on('pointerdown', (pointer) => {
-            const newSpeed = (pointer.x - this.sliders.ballSpeed.x) * 10;
-            this.BALL_SPEED = Phaser.Math.Clamp(newSpeed, 100, 1000);
-        });
-        yPos += 40;
-
-        // Player Speed Slider
-        this.add.text(10, yPos, 'Player Speed:', style);
-        this.sliders.playerSpeed = this.add.rectangle(100, yPos + 15, 100, 10, 0x666666);
-        this.sliders.playerSpeed.setInteractive();
-        this.sliders.playerSpeed.on('pointerdown', (pointer) => {
-            const newSpeed = (pointer.x - this.sliders.playerSpeed.x) * 10;
+        // Player Speed Input
+        const playerSpeedInput = document.createElement('input');
+        playerSpeedInput.type = 'number';
+        playerSpeedInput.value = this.PLAYER_SPEED;
+        playerSpeedInput.style.width = '100px';
+        playerSpeedInput.style.fontSize = '24px';
+        playerSpeedInput.style.position = 'absolute';
+        playerSpeedInput.style.left = '320px';
+        playerSpeedInput.style.top = (yPos + 15) + 'px';
+        playerSpeedInput.title = 'Player Speed';
+        playerSpeedInput.id = 'playerSpeedInput';
+        document.playerSpeedInput = playerSpeedInput;
+        playerSpeedInput.addEventListener('change', (event) => {
+            const newSpeed = parseInt(event.target.value);
             this.PLAYER_SPEED = Phaser.Math.Clamp(newSpeed, 200, 800);
         });
+        document.body.appendChild(playerSpeedInput);
         yPos += 40;
 
-        // Player Size Controls
-        this.add.text(10, yPos, 'Player Size:', style);
-        const widthBtn = this.add.text(100, yPos, '+W', style).setInteractive();
-        const heightBtn = this.add.text(140, yPos, '+H', style).setInteractive();
-        widthBtn.on('pointerdown', () => {
-            this.player.width = Phaser.Math.Clamp(this.player.width + 5, 20, 100);
+        // Width Input
+        const playerWidthInput = document.createElement('input');
+        playerWidthInput.type = 'number';
+        playerWidthInput.value = this.player.width;
+        playerWidthInput.style.width = '100px';
+        playerWidthInput.style.fontSize = '24px';
+        playerWidthInput.style.position = 'absolute';
+        playerWidthInput.style.left = '320px';
+        playerWidthInput.style.top = (yPos + 15) + 'px';
+        playerWidthInput.title = 'Player Width';
+        playerWidthInput.id = 'playerWidthInput';
+        document.playerWidthInput = playerWidthInput;
+        playerWidthInput.addEventListener('change', (event) => {
+            const newWidth = parseInt(event.target.value);
+            this.player.width = Phaser.Math.Clamp(newWidth, 20, 100);
         });
-        heightBtn.on('pointerdown', () => {
-            this.player.height = Phaser.Math.Clamp(this.player.height + 5, 50, 200);
+        document.body.appendChild(playerWidthInput);
+        yPos += 40;
+
+        // Height Input
+        const playerHeightInput = document.createElement('input');
+        playerHeightInput.type = 'number';
+        playerHeightInput.value = this.player.height;
+        playerHeightInput.style.width = '100px';
+        playerHeightInput.style.fontSize = '24px';
+        playerHeightInput.style.position = 'absolute';
+        playerHeightInput.style.left = '320px';
+        playerHeightInput.style.top = (yPos + 15) + 'px';
+        playerHeightInput.title = 'Player Height';
+        playerHeightInput.id = 'playerHeightInput';
+        document.playerHeightInput = playerHeightInput;
+        playerHeightInput.addEventListener('change', (event) => {
+            const newHeight = parseInt(event.target.value);
+            this.player.height = Phaser.Math.Clamp(newHeight, 50, 200);
+        });
+        document.body.appendChild(playerHeightInput);
+
+        // Update input positions when panel is dragged
+        leftPanel.on('drag', (pointer, dragX, dragY) => {
+            leftPanel.x = dragX;
+            leftPanel.y = dragY;
+            const inputs = ['playerSpeedInput', 'playerWidthInput', 'playerHeightInput'];
+            inputs.forEach((inputName, index) => {
+                const input = document[inputName];
+                if (input) {
+                    input.style.left = (dragX + 170) + 'px';
+                    input.style.top = (dragY + 20 + (index * 40)) + 'px';
+                }
+            });
         });
 
         // Right side - Statistics Panel
         const rightPanelWidth = 200;
-        const rightPanel = this.add.rectangle(this.game.config.width - rightPanelWidth, 0, rightPanelWidth, this.game.config.height, 0x000000, 0.7);
+        const rightPanel = this.add.rectangle(1400, 100, rightPanelWidth, this.game.config.height - 100, 0x000000, 0.7);
         rightPanel.setOrigin(0, 0);
+        rightPanel.setInteractive({ draggable: true });
+        
+        // Create a container for debug texts
+        this.debugTextsContainer = this.add.container(1410, 120);
+        
+        // Add debug texts to the container
+        let textYPos = 0;
+        this.debugTexts.ballSpeed = this.add.text(0, textYPos, 'Ball Speed: 0', style);
+        this.debugTextsContainer.add(this.debugTexts.ballSpeed);
+        textYPos += 30;
+        
+        this.debugTexts.ballPos = this.add.text(0, textYPos, 'Ball Pos: 0,0', style);
+        this.debugTextsContainer.add(this.debugTexts.ballPos);
+        textYPos += 30;
+        
+        this.debugTexts.playerPos = this.add.text(0, textYPos, 'Player Pos: 0,0', style);
+        this.debugTextsContainer.add(this.debugTexts.playerPos);
+        textYPos += 30;
+        
+        this.debugTexts.playerVel = this.add.text(0, textYPos, 'Player Vel: 0,0', style);
+        this.debugTextsContainer.add(this.debugTexts.playerVel);
 
-        yPos = 20;
-        this.debugTexts.ballSpeed = this.add.text(this.game.config.width - 190, yPos, 'Ball Speed: 0', style);
-        yPos += 30;
-        this.debugTexts.ballPos = this.add.text(this.game.config.width - 190, yPos, 'Ball Pos: 0,0', style);
-        yPos += 30;
-        this.debugTexts.playerPos = this.add.text(this.game.config.width - 190, yPos, 'Player Pos: 0,0', style);
-        yPos += 30;
-        this.debugTexts.playerVel = this.add.text(this.game.config.width - 190, yPos, 'Player Vel: 0,0', style);
+        // Make right panel draggable and update text positions
+        rightPanel.on('drag', (pointer, dragX, dragY) => {
+            rightPanel.x = dragX;
+            rightPanel.y = dragY;
+            this.debugTextsContainer.x = dragX + 10;
+            this.debugTextsContainer.y = dragY + 20;
+        });
     }
 
     create() {
         // Create coordinate ruler system
         this.createCoordinateRuler();
+
+        // Create mouse position indicator fixed at bottom right
+        const gameWidth = this.game.config.width;
+        const gameHeight = this.game.config.height;
+        this.mousePositionText = this.add.text(1400, 1000, 'X: 0, Y: 0', {
+            fontSize: '24px',
+            fill: '#ffffff',
+            backgroundColor: '#000000',
+            padding: { x: 10, y: 5 }
+        });
+        this.mousePositionText.setDepth(1000); // Ensure it's always on top
+        
+        // Add mouse move event listener
+        this.input.on('pointermove', (pointer) => {
+            this.mousePositionText.setText(`X: ${Math.round(pointer.x)}, Y: ${Math.round(pointer.y)}`);
+        });
 
         // Create the ball sprite with physics
         this.ball = this.add.circle(400, 300, 10, 0xffffff);
@@ -152,26 +228,6 @@ export default class MainScene extends Phaser.Scene {
 
         // Set up keyboard controls
         this.cursors = this.input.keyboard.createCursorKeys();
-
-        // Set up touch controls
-        this.input.on('pointermove', (pointer) => {
-            if (pointer.isDown) {
-                const newX = Phaser.Math.Clamp(pointer.x, this.player.width/2, this.game.config.width - this.player.width/2);
-                this.player.x = newX;
-            }
-        });
-
-        // Add touch jump control
-        this.input.on('pointerdown', (pointer) => {
-            if (this.canJump && this.player.body.touching.down) {
-                this.player.body.setVelocityY(this.JUMP_VELOCITY);
-                this.canJump = false;
-            }
-        });
-
-        this.input.on('pointerup', () => {
-            this.canJump = true;
-        });
 
         // Add collision detection between ball and swing hitbox
         this.physics.add.overlap(this.ball, this.swingHitbox, this.handleBallHit, null, this);
