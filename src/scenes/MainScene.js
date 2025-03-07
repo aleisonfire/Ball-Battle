@@ -1,15 +1,20 @@
 import Phaser from 'phaser';
+import DebugUtils from '../scripts/DebugUtils';
 
 export default class MainScene extends Phaser.Scene {
     constructor() {
         super('MainScene');
         this.ball = null;
-        this.player = null;
+        this.player1 = null;
+        this.player2 = null;
         this.BALL_SPEED = 300;
-        this.PLAYER_SPEED = 400;
-        this.JUMP_VELOCITY = -600;
+        this.PLAYER_SPEED = 800;
+        this.JUMP_VELOCITY = -900;
         this.cursors = null;
-        this.canJump = true;
+        this.canJump1 = true;
+        this.canJump2 = true;
+        this.jumpCount1 = 0;
+        this.jumpCount2 = 0;
         this.swingHitbox = null;
         this.isSwinging = false;
         this.swingDuration = 300;
@@ -17,142 +22,38 @@ export default class MainScene extends Phaser.Scene {
         this.MAX_BALL_SPEED = Number.MAX_SAFE_INTEGER;
         this.speedMeter = null;
         this.speedMeterFill = null;
+        // Life system properties
+        this.player1Lives = 5;
+        this.player2Lives = 5;
+        this.player1LivesText = null;
+        this.player2LivesText = null;
         // Hit stop effect properties
-        this.HIT_STOP_THRESHOLD = 4500;
-        this.BASE_HIT_STOP_DURATION = 100;
+        this.HIT_STOP_THRESHOLD = 3500;
+        this.BASE_HIT_STOP_DURATION = 600;
         this.hitStopCount = 0;
         this.isHitStopped = false;
+        this.gameStarted = false;
+        this.firstHit = false; // Track if the first hit has occurred
+        
+        // AI properties
+        this.isAIEnabled = true;
+        this.aiSwingCooldown = false;
+        this.aiDecisionTimer = 0;
+        this.aiReactionTime = 300; // milliseconds
+        this.aiDifficultyLevel = 0.7; // 0 to 1, higher is more difficult
 
-        // Debug menu properties
-        this.debugMenuLeft = null;
-        this.debugMenuRight = null;
-        this.debugTexts = {};
-        this.sliders = {};
+        // Debug utils
+        this.debugUtils = null;
     }
 
     preload() {
         // No need to create circle in preload
     }
 
-    createDebugMenu() {
-        // Left side - Control Panel
-        const leftPanelWidth = 200;
-        const leftPanel = this.add.rectangle(116, 64, leftPanelWidth, this.game.config.height, 0x000000, 0.7);
-        leftPanel.setOrigin(0, 0);
-        leftPanel.setInteractive({ draggable: true });
-
-        const style = { fontSize: '32px', fill: '#fff' };
-        let yPos = 84;
-
-        // Player Speed Input
-        const playerSpeedInput = document.createElement('input');
-        playerSpeedInput.type = 'number';
-        playerSpeedInput.value = this.PLAYER_SPEED;
-        playerSpeedInput.style.width = '100px';
-        playerSpeedInput.style.fontSize = '24px';
-        playerSpeedInput.style.position = 'absolute';
-        playerSpeedInput.style.left = '320px';
-        playerSpeedInput.style.top = (yPos + 15) + 'px';
-        playerSpeedInput.title = 'Player Speed';
-        playerSpeedInput.id = 'playerSpeedInput';
-        document.playerSpeedInput = playerSpeedInput;
-        playerSpeedInput.addEventListener('change', (event) => {
-            const newSpeed = parseInt(event.target.value);
-            this.PLAYER_SPEED = Phaser.Math.Clamp(newSpeed, 200, 800);
-        });
-        document.body.appendChild(playerSpeedInput);
-        yPos += 40;
-
-        // Width Input
-        const playerWidthInput = document.createElement('input');
-        playerWidthInput.type = 'number';
-        playerWidthInput.value = this.player.width;
-        playerWidthInput.style.width = '100px';
-        playerWidthInput.style.fontSize = '24px';
-        playerWidthInput.style.position = 'absolute';
-        playerWidthInput.style.left = '320px';
-        playerWidthInput.style.top = (yPos + 15) + 'px';
-        playerWidthInput.title = 'Player Width';
-        playerWidthInput.id = 'playerWidthInput';
-        document.playerWidthInput = playerWidthInput;
-        playerWidthInput.addEventListener('change', (event) => {
-            const newWidth = parseInt(event.target.value);
-            this.player.width = Phaser.Math.Clamp(newWidth, 20, 100);
-        });
-        document.body.appendChild(playerWidthInput);
-        yPos += 40;
-
-        // Height Input
-        const playerHeightInput = document.createElement('input');
-        playerHeightInput.type = 'number';
-        playerHeightInput.value = this.player.height;
-        playerHeightInput.style.width = '100px';
-        playerHeightInput.style.fontSize = '24px';
-        playerHeightInput.style.position = 'absolute';
-        playerHeightInput.style.left = '320px';
-        playerHeightInput.style.top = (yPos + 15) + 'px';
-        playerHeightInput.title = 'Player Height';
-        playerHeightInput.id = 'playerHeightInput';
-        document.playerHeightInput = playerHeightInput;
-        playerHeightInput.addEventListener('change', (event) => {
-            const newHeight = parseInt(event.target.value);
-            this.player.height = Phaser.Math.Clamp(newHeight, 50, 200);
-        });
-        document.body.appendChild(playerHeightInput);
-
-        // Update input positions when panel is dragged
-        leftPanel.on('drag', (pointer, dragX, dragY) => {
-            leftPanel.x = dragX;
-            leftPanel.y = dragY;
-            const inputs = ['playerSpeedInput', 'playerWidthInput', 'playerHeightInput'];
-            inputs.forEach((inputName, index) => {
-                const input = document[inputName];
-                if (input) {
-                    input.style.left = (dragX + 170) + 'px';
-                    input.style.top = (dragY + 20 + (index * 40)) + 'px';
-                }
-            });
-        });
-
-        // Right side - Statistics Panel
-        const rightPanelWidth = 200;
-        const rightPanel = this.add.rectangle(1400, 100, rightPanelWidth, this.game.config.height - 100, 0x000000, 0.7);
-        rightPanel.setOrigin(0, 0);
-        rightPanel.setInteractive({ draggable: true });
-        
-        // Create a container for debug texts
-        this.debugTextsContainer = this.add.container(1410, 120);
-        
-        // Add debug texts to the container
-        let textYPos = 0;
-        this.debugTexts.ballSpeed = this.add.text(0, textYPos, 'Ball Speed: 0', style);
-        this.debugTextsContainer.add(this.debugTexts.ballSpeed);
-        textYPos += 30;
-        
-        this.debugTexts.ballPos = this.add.text(0, textYPos, 'Ball Pos: 0,0', style);
-        this.debugTextsContainer.add(this.debugTexts.ballPos);
-        textYPos += 30;
-        
-        this.debugTexts.playerPos = this.add.text(0, textYPos, 'Player Pos: 0,0', style);
-        this.debugTextsContainer.add(this.debugTexts.playerPos);
-        textYPos += 30;
-        
-        this.debugTexts.playerVel = this.add.text(0, textYPos, 'Player Vel: 0,0', style);
-        this.debugTextsContainer.add(this.debugTexts.playerVel);
-
-        // Make right panel draggable and update text positions
-        rightPanel.on('drag', (pointer, dragX, dragY) => {
-            rightPanel.x = dragX;
-            rightPanel.y = dragY;
-            this.debugTextsContainer.x = dragX + 10;
-            this.debugTextsContainer.y = dragY + 20;
-        });
-    }
-
     create() {
-        // Create coordinate ruler system
-        this.createCoordinateRuler();
-
+        // Initialize debug utils but don't create debug elements
+        this.debugUtils = new DebugUtils(this);
+        
         // Create mouse position indicator fixed at bottom right
         const gameWidth = this.game.config.width;
         const gameHeight = this.game.config.height;
@@ -169,33 +70,62 @@ export default class MainScene extends Phaser.Scene {
             this.mousePositionText.setText(`X: ${Math.round(pointer.x)}, Y: ${Math.round(pointer.y)}`);
         });
 
+        // Create player lives UI
+        this.player1LivesText = this.add.text(50, 100, `Player 1: ${this.player1Lives} ❤️`, {
+            fontSize: '32px',
+            fill: '#00ff00'
+        });
+        
+        this.player2LivesText = this.add.text(this.game.config.width - 250, 100, `Player 2: ${this.player2Lives} ❤️`, {
+            fontSize: '32px',
+            fill: '#0000ff'
+        });
+        
         // Create the ball sprite with physics
-        this.ball = this.add.circle(400, 300, 10, 0xffffff);
+        this.ball = this.add.circle(900, 600, 10, 0xffffff);
         this.physics.add.existing(this.ball);
 
         // Set ball properties
         this.ball.body.setCollideWorldBounds(true);
         this.ball.body.setBounce(1, 1);
-        this.ball.body.setVelocity(this.BALL_SPEED, this.BALL_SPEED);
+        // Make ball stationary at start
+        this.ball.body.setVelocity(0, 0);
+
+        // Set gameStarted to true but don't move the ball yet
+        // The ball will only move after the first hit
+        this.gameStarted = true;
 
         // Remove maximum velocity limit to allow continuous speed increase
         this.ball.body.setMaxVelocity(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
 
-        // Create the player
-        this.player = this.add.rectangle(400, 500, 25, 100, 0x00ff00);
-        this.physics.add.existing(this.player, false);
-        this.player.body.setCollideWorldBounds(true);
-        this.player.body.setGravityY(2000); // Increased gravity
-        this.player.body.setFriction(0);
-        this.player.body.setDragX(0);
+        // Create player 1
+        this.player1 = this.add.rectangle(400, 500, 50, 200, 0x00ff00);
+        this.player1.fillColor = 0x00ff00; // Store color for ball ownership
+        this.physics.add.existing(this.player1, false);
+        this.player1.body.setCollideWorldBounds(true);
+        this.jumpCount1 = 0;
+        this.player1.body.setGravityY(2000);
+        this.player1.body.setFriction(0);
+        this.player1.body.setDragX(0);
+
+        // Create player 2
+        this.player2 = this.add.rectangle(1520, 500, 50, 200, 0x0000ff);
+        this.player2.fillColor = 0x0000ff; // Store color for ball ownership
+        this.physics.add.existing(this.player2, false);
+        this.player2.body.setCollideWorldBounds(true);
+        this.jumpCount2 = 0;
+        this.player2.body.setGravityY(2000);
+        this.player2.body.setFriction(0);
+        this.player2.body.setDragX(0);
         
         // Create ground collision detection
         const ground = this.add.rectangle(960, 900, 1920, 20, 0x666666);
         this.physics.add.existing(ground, true);
-        this.physics.add.collider(this.player, ground);
+        this.physics.add.collider(this.player1, ground);
+        this.physics.add.collider(this.player2, ground);
 
-        // Debug visualization
-        this.physics.world.createDebugGraphic();
+        // Debug visualization - disabled
+        // this.physics.world.createDebugGraphic();
 
         // Create swing hitbox (initially invisible)
         this.swingHitbox = this.add.rectangle(0, 0, 150, 40, 0xff0000);
@@ -223,8 +153,8 @@ export default class MainScene extends Phaser.Scene {
             fill: '#fff'
         }).setOrigin(0.5, 0);
 
-        // Create debug menu
-        this.createDebugMenu();
+        // Create debug menu - disabled
+        // this.debugUtils.createDebugMenu();
 
         // Set up keyboard controls
         this.cursors = this.input.keyboard.createCursorKeys();
@@ -232,8 +162,14 @@ export default class MainScene extends Phaser.Scene {
         // Add collision detection between ball and swing hitbox
         this.physics.add.overlap(this.ball, this.swingHitbox, this.handleBallHit, null, this);
 
-        // Track ball ownership
+        // Track ball ownership and active player
         this.ballOwner = null;
+        this.player = this.player1; // Player1 is always the human player
+        this.jumpCount = this.jumpCount1; // Set initial jumpCount
+        this.canJump = this.canJump1; // Set initial canJump
+        
+        // Add AI difficulty selector
+        this.createAIDifficultySelector();
     }
 
     startSwing() {
@@ -272,6 +208,11 @@ export default class MainScene extends Phaser.Scene {
 
     handleBallHit(ball, hitbox) {
         if (this.isSwinging) {
+            // Set firstHit to true if this is the first hit
+            if (!this.firstHit) {
+                this.firstHit = true;
+            }
+            
             // Calculate impact point and new direction
             const impactPoint = (ball.y - hitbox.y) / hitbox.height;
             const angle = -75 + (impactPoint * 150);
@@ -291,8 +232,9 @@ export default class MainScene extends Phaser.Scene {
             // Apply velocity
             ball.body.setVelocity(velocityX, velocityY);
     
-            // Update ball ownership
+            // Update ball ownership and color
             this.ballOwner = this.player;
+            this.ball.setFillStyle(this.player.fillColor); // Set ball color to match player color
 
             // Check if speed exceeds threshold for hit stop effect
             if (newSpeed > this.HIT_STOP_THRESHOLD && !this.isHitStopped) {
@@ -354,29 +296,316 @@ export default class MainScene extends Phaser.Scene {
         this.speedText.setText(`${Math.round(currentSpeed)} px/s`);
     }
 
-    update() {
-        if (!this.isHitStopped) {
-            // Keyboard controls for movement
-            if (this.cursors.left.isDown) {
-                this.player.body.setVelocityX(-this.PLAYER_SPEED);
-            } else if (this.cursors.right.isDown) {
-                this.player.body.setVelocityX(this.PLAYER_SPEED);
-            } else {
-                this.player.body.setVelocityX(0);
+    checkBallCollisions() {
+      // Check collision with player1
+      if (this.physics.overlap(this.ball, this.player1) && this.ballOwner !== this.player1) {
+        console.log('Player 1 hit by ball!');
+        this.player1Lives--;
+        this.player1LivesText.setText(`Player 1: ${this.player1Lives} ❤️`);
+        
+        if (this.player1Lives <= 0) {
+          // Game over - Player 2 wins
+          const gameOverText = this.add.text(this.game.config.width / 2, this.game.config.height / 2, 'Game Over - Player 2 Wins!', {
+            fontSize: '64px',
+            fill: '#ff0000',
+            backgroundColor: '#000000',
+            padding: { x: 20, y: 10 }
+          }).setOrigin(0.5);
+          
+          // Reset game after 2 seconds
+          this.time.delayedCall(2000, () => {
+            gameOverText.destroy();
+            this.player1Lives = 5;
+            this.player2Lives = 5;
+            this.player1LivesText.setText(`Player 1: ${this.player1Lives} ❤️`);
+            this.player2LivesText.setText(`Player 2: ${this.player2Lives} ❤️`);
+            this.resetBallPosition();
+          });
+        } else {
+          this.resetBallPosition();
+        }
+      }
+      
+      // Check collision with player2
+      if (this.physics.overlap(this.ball, this.player2) && this.ballOwner !== this.player2) {
+        console.log('Player 2 hit by ball!');
+        this.player2Lives--;
+        this.player2LivesText.setText(`Player 2: ${this.player2Lives} ❤️`);
+        
+        if (this.player2Lives <= 0) {
+          // Game over - Player 1 wins
+          const gameOverText = this.add.text(this.game.config.width / 2, this.game.config.height / 2, 'Game Over - Player 1 Wins!', {
+            fontSize: '64px',
+            fill: '#ff0000',
+            backgroundColor: '#000000',
+            padding: { x: 20, y: 10 }
+          }).setOrigin(0.5);
+          
+          // Reset game after 2 seconds
+          this.time.delayedCall(2000, () => {
+            gameOverText.destroy();
+            this.player1Lives = 5;
+            this.player2Lives = 5;
+            this.player1LivesText.setText(`Player 1: ${this.player1Lives} ❤️`);
+            this.player2LivesText.setText(`Player 2: ${this.player2Lives} ❤️`);
+            this.resetBallPosition();
+          });
+        } else {
+          this.resetBallPosition();
+        }
+      }
+    }
+    
+    resetBallPosition() {
+        // Reset ball to center with default speed
+        this.ball.x = this.game.config.width / 2;
+        this.ball.y = this.game.config.height / 2;
+        
+        // Give the ball a random direction at default speed
+        const angle = Phaser.Math.Between(-60, 60);
+        const angleRad = Phaser.Math.DegToRad(angle);
+        
+        this.ball.body.setVelocity(
+            Math.cos(angleRad) * this.BALL_SPEED,
+            Math.sin(angleRad) * this.BALL_SPEED
+        );
+        
+        // Reset ball ownership and color
+        this.ballOwner = null;
+        this.ball.setFillStyle(0xffffff); // Reset to white color
+    }
+    
+    createAIDifficultySelector() {
+        // Create difficulty text
+        this.add.text(50, 30, 'AI Difficulty:', {
+            fontSize: '24px',
+            fill: '#ffffff'
+        });
+        
+        // Create difficulty slider
+        const sliderTrack = this.add.rectangle(200, 45, 200, 10, 0x666666);
+        sliderTrack.setOrigin(0, 0.5);
+        
+        // Create slider handle
+        const sliderHandle = this.add.rectangle(200 + (this.aiDifficultyLevel * 200), 45, 20, 30, 0xffffff);
+        sliderHandle.setOrigin(0.5, 0.5);
+        sliderHandle.setInteractive({ draggable: true });
+        
+        // Create difficulty level text
+        const difficultyText = this.add.text(420, 45, `${Math.round(this.aiDifficultyLevel * 100)}%`, {
+            fontSize: '24px',
+            fill: '#ffffff'
+        }).setOrigin(0, 0.5);
+        
+        // Handle slider drag
+        sliderHandle.on('drag', (pointer, dragX) => {
+            // Constrain handle to track
+            const x = Phaser.Math.Clamp(dragX, 200, 400);
+            sliderHandle.x = x;
+            
+            // Update difficulty level (0 to 1)
+            this.aiDifficultyLevel = (x - 200) / 200;
+            difficultyText.setText(`${Math.round(this.aiDifficultyLevel * 100)}%`);
+        });
+    }
+    
+    updateAI() {
+        if (!this.isAIEnabled) return;
+        
+        // Update AI decision timer
+        this.aiDecisionTimer += this.game.loop.delta;
+        
+        // Only make decisions after reaction time has passed
+        if (this.aiDecisionTimer < this.aiReactionTime) return;
+        
+        // Reset decision timer
+        this.aiDecisionTimer = 0;
+        
+        // Get ball position and velocity
+        const ballX = this.ball.x;
+        const ballY = this.ball.y;
+        const ballVelX = this.ball.body.velocity.x;
+        const ballVelY = this.ball.body.velocity.y;
+        
+        // Reset jump count when touching ground
+        if (this.player2.body.touching.down) {
+            this.jumpCount2 = 0;
+            this.canJump2 = true;
+        }
+
+        // Only react if ball is moving toward AI (positive X velocity)
+        if (ballVelX > 0) {
+            // Predict where ball will be when it reaches AI's x position
+            const timeToReach = (this.player2.x - ballX) / ballVelX;
+            const predictedY = ballY + (ballVelY * timeToReach);
+            
+            // Add some randomness based on difficulty level
+            const errorMargin = 200 * (1 - this.aiDifficultyLevel);
+            const targetY = predictedY + Phaser.Math.Between(-errorMargin, errorMargin);
+            
+            // Handle jumping only when the ball is significantly above the AI
+            if (targetY < this.player2.y - 100 && this.canJump2 && this.jumpCount2 < 2) {
+                this.player2.body.setVelocityY(this.JUMP_VELOCITY);
+                this.jumpCount2++;
+                this.canJump2 = false;
             }
 
-            // Keyboard controls for jumping
-            if (this.cursors.up.isDown && this.canJump && this.player.body.touching.down) {
-                this.player.body.setVelocityY(this.JUMP_VELOCITY);
-                this.canJump = false;
+            // Move horizontally based on ball position with more aggressive movement
+            const optimalDistance = 150; // Optimal distance to maintain from the ball
+            const currentDistance = this.player2.x - ballX;
+            
+            if (currentDistance > optimalDistance + 50) {
+                this.player2.body.setVelocityX(-this.PLAYER_SPEED);
+            } else if (currentDistance < optimalDistance - 50) {
+                this.player2.body.setVelocityX(this.PLAYER_SPEED);
+            } else {
+                this.player2.body.setVelocityX(0);
+            }
+            
+            // Decide whether to swing based on proximity and difficulty
+            const distanceX = Math.abs(this.player2.x - ballX);
+            const distanceY = Math.abs(this.player2.y - ballY);
+            
+            if (distanceX < 200 && distanceY < 100 && !this.aiSwingCooldown) {
+                if (Math.random() < this.aiDifficultyLevel) {
+                    this.aiSwing();
+                }
+            }
+        } else {
+            // If ball moving away, return to center position
+            const centerX = this.game.config.width * 0.8;
+            const centerY = 500;
+            
+            // Move horizontally to center
+            if (this.player2.x < centerX - 50) {
+                this.player2.body.setVelocityX(this.PLAYER_SPEED * 0.7);
+            } else if (this.player2.x > centerX + 50) {
+                this.player2.body.setVelocityX(-this.PLAYER_SPEED * 0.7);
+            } else {
+                this.player2.body.setVelocityX(0);
+            }
+            
+            // Only jump to return to center height if too high
+            if (this.player2.y < centerY - 100) {
+                // Let gravity bring the AI down naturally
+                // No need to set vertical velocity
+            }
+        }
+    }
+    
+    aiSwing() {
+        // Create a temporary swing hitbox for AI
+        const aiSwingHitbox = this.add.rectangle(this.player2.x - 75, this.player2.y, 150, 40, 0xff0000);
+        this.physics.add.existing(aiSwingHitbox, false);
+        aiSwingHitbox.visible = true;
+        
+        // Set AI swing cooldown
+        this.aiSwingCooldown = true;
+        
+        // Add collision detection for AI swing
+        const aiSwingCollider = this.physics.add.overlap(this.ball, aiSwingHitbox, (ball, hitbox) => {
+            // Set firstHit to true if this is the first hit
+            if (!this.firstHit) {
+                this.firstHit = true;
+            }
+            
+            // Calculate impact point and new direction
+            const impactPoint = (ball.y - hitbox.y) / hitbox.height;
+            const angle = -75 + (impactPoint * 150);
+            const angleRad = Phaser.Math.DegToRad(angle);
+    
+            // Get current speed
+            const currentSpeed = Math.sqrt(Math.pow(ball.body.velocity.x, 2) + Math.pow(ball.body.velocity.y, 2));
+            
+            // Calculate speed increase
+            const baseIncrease = Math.max(currentSpeed * 0.3, 100);
+            const newSpeed = currentSpeed + baseIncrease;
+    
+            // Set new velocity components while maintaining the calculated angle
+            const velocityX = -Math.abs(Math.cos(angleRad) * newSpeed); // Force negative X to go toward player
+            const velocityY = Math.sin(angleRad) * newSpeed;
+            
+            // Apply velocity
+            ball.body.setVelocity(velocityX, velocityY);
+    
+            // Update ball ownership and color
+            this.ballOwner = this.player2;
+            this.ball.setFillStyle(this.player2.fillColor); // Set ball color to match AI player color
+            
+            // Check for hit stop effect
+            if (newSpeed > this.HIT_STOP_THRESHOLD && !this.isHitStopped) {
+                this.isHitStopped = true;
+                this.hitStopCount++;
+                
+                // Calculate hit stop duration
+                const hitStopDuration = this.BASE_HIT_STOP_DURATION + (this.hitStopCount * 100);
+                
+                // Store current velocities
+                const storedVelocityX = ball.body.velocity.x;
+                const storedVelocityY = ball.body.velocity.y;
+                
+                // Freeze objects
+                ball.body.enable = false;
+                
+                // Resume normal physics after the hit stop duration
+                this.time.addEvent({
+                    delay: hitStopDuration,
+                    callback: () => {
+                        // Re-enable physics bodies
+                        ball.body.enable = true;
+                        
+                        // Restore velocities
+                        ball.body.setVelocity(storedVelocityX, storedVelocityY);
+                        this.isHitStopped = false;
+                    },
+                    callbackScope: this
+                });
+            }
+        }, null, this);
+        
+        // Remove hitbox and collider after duration
+        this.time.delayedCall(this.swingDuration, () => {
+            aiSwingHitbox.destroy();
+            this.physics.world.removeCollider(aiSwingCollider);
+        });
+        
+        // Reset AI swing cooldown after delay
+        this.time.delayedCall(this.swingDuration * 2, () => {
+            this.aiSwingCooldown = false;
+        });
+    }
+
+    update() {
+        if (!this.isHitStopped) {
+            // Handle human player (player1) controls
+            if (this.cursors.left.isDown) {
+                this.player1.body.setVelocityX(-this.PLAYER_SPEED);
+            } else if (this.cursors.right.isDown) {
+                this.player1.body.setVelocityX(this.PLAYER_SPEED);
+            } else {
+                this.player1.body.setVelocityX(0);
+            }
+
+            // Reset jump count when touching ground
+            if (this.player1.body.touching.down) {
+                this.jumpCount1 = 0;
+                this.jumpCount = this.jumpCount1;
+            }
+
+            // Handle human player jumping
+            if (this.cursors.up.isDown && this.canJump1 && this.jumpCount1 < 2) {
+                this.player1.body.setVelocityY(this.JUMP_VELOCITY);
+                this.canJump1 = false;
+                this.jumpCount1++;
             }
 
             if (this.cursors.up.isUp) {
-                this.canJump = true;
+                this.canJump1 = true;
             }
 
-            // Keyboard controls for swinging
+            // Handle human player swinging
             if (this.cursors.down.isDown && !this.swingCooldown) {
+                this.player = this.player1;
                 this.startSwing();
             }
 
@@ -385,52 +614,17 @@ export default class MainScene extends Phaser.Scene {
                 this.updateSwingHitboxPosition();
             }
 
+            // Update AI behavior
+            this.updateAI();
+
             // Handle ball-player collision based on ownership
-            if (this.physics.overlap(this.ball, this.player)) {
-                if (this.ballOwner !== this.player) {
-                    console.log('Player hit by ball!');
-                    // TODO: Implement life reduction here
-                }
-            }
+            this.checkBallCollisions();
         }
 
         // Update speed meter
         this.updateSpeedMeter();
 
         // Update debug statistics
-        if (this.debugTexts.ballSpeed) {
-            const speed = Math.sqrt(Math.pow(this.ball.body.velocity.x, 2) + Math.pow(this.ball.body.velocity.y, 2));
-            this.debugTexts.ballSpeed.setText(`Ball Speed: ${Math.round(speed)}`);
-            this.debugTexts.ballPos.setText(`Ball Pos: ${Math.round(this.ball.x)},${Math.round(this.ball.y)}`);
-            this.debugTexts.playerPos.setText(`Player Pos: ${Math.round(this.player.x)},${Math.round(this.player.y)}`);
-            this.debugTexts.playerVel.setText(`Player Vel: ${Math.round(this.player.body.velocity.x)},${Math.round(this.player.body.velocity.y)}`);
-        }
-    }
-
-    createCoordinateRuler() {
-        const gridSize = 100; // Size of each grid cell
-        const gridColor = 0x444444;
-        const gridAlpha = 0.3;
-        const textStyle = { fontSize: '24px', fill: '#666666' };
-
-        // Create grid lines
-        const graphics = this.add.graphics();
-        graphics.lineStyle(1, gridColor, gridAlpha);
-
-        // Draw vertical lines and x-axis markers
-        for (let x = 0; x <= this.game.config.width; x += gridSize) {
-            graphics.moveTo(x, 0);
-            graphics.lineTo(x, this.game.config.height);
-            this.add.text(x + 5, 5, `x:${x}`, textStyle).setDepth(1);
-        }
-
-        // Draw horizontal lines and y-axis markers
-        for (let y = 0; y <= this.game.config.height; y += gridSize) {
-            graphics.moveTo(0, y);
-            graphics.lineTo(this.game.config.width, y);
-            this.add.text(5, y + 5, `y:${y}`, textStyle).setDepth(1);
-        }
-
-        graphics.strokePath();
+        this.debugUtils.updateDebugStats();
     }
 }
