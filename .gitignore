@@ -39,3 +39,4 @@ Thumbs.db
 *.7z
 *.iso
 *.dmg
+node_modules

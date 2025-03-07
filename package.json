@@ -9,8 +9,12 @@
     "build": "vite build"
   },
   "keywords": [],
-  "author": "",
+  "author": "aleisonfire",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aleisonfire/Ball-Battle.git"
+  },
   "dependencies": {
     "@capacitor/android": "^7.0.1",
     "@capacitor/cli": "^7.0.1",
