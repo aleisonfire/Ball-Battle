@@ -22,12 +22,18 @@ export default class MainScene extends Phaser.Scene {
         this.MAX_BALL_SPEED = Number.MAX_SAFE_INTEGER;
         this.speedMeter = null;
         this.speedMeterFill = null;
+        // Life system properties
+        this.player1Lives = 5;
+        this.player2Lives = 5;
+        this.player1LivesText = null;
+        this.player2LivesText = null;
         // Hit stop effect properties
         this.HIT_STOP_THRESHOLD = 3500;
         this.BASE_HIT_STOP_DURATION = 600;
         this.hitStopCount = 0;
         this.isHitStopped = false;
         this.gameStarted = false;
+        this.firstHit = false; // Track if the first hit has occurred
         
         // AI properties
         this.isAIEnabled = true;
@@ -45,12 +51,9 @@ export default class MainScene extends Phaser.Scene {
     }
 
     create() {
-        // Initialize debug utils
+        // Initialize debug utils but don't create debug elements
         this.debugUtils = new DebugUtils(this);
         
-        // Create coordinate ruler system
-        this.debugUtils.createCoordinateRuler();
-
         // Create mouse position indicator fixed at bottom right
         const gameWidth = this.game.config.width;
         const gameHeight = this.game.config.height;
@@ -67,6 +70,17 @@ export default class MainScene extends Phaser.Scene {
             this.mousePositionText.setText(`X: ${Math.round(pointer.x)}, Y: ${Math.round(pointer.y)}`);
         });
 
+        // Create player lives UI
+        this.player1LivesText = this.add.text(50, 100, `Player 1: ${this.player1Lives} ❤️`, {
+            fontSize: '32px',
+            fill: '#00ff00'
+        });
+        
+        this.player2LivesText = this.add.text(this.game.config.width - 250, 100, `Player 2: ${this.player2Lives} ❤️`, {
+            fontSize: '32px',
+            fill: '#0000ff'
+        });
+        
         // Create the ball sprite with physics
         this.ball = this.add.circle(900, 600, 10, 0xffffff);
         this.physics.add.existing(this.ball);
@@ -77,16 +91,9 @@ export default class MainScene extends Phaser.Scene {
         // Make ball stationary at start
         this.ball.body.setVelocity(0, 0);
 
-        // Start game after 2 seconds
-        this.time.delayedCall(2000, () => {
-            this.gameStarted = true;
-            const angle = Phaser.Math.Between(-60, 60);
-            const angleRad = Phaser.Math.DegToRad(angle);
-            this.ball.body.setVelocity(
-                Math.cos(angleRad) * this.BALL_SPEED,
-                Math.sin(angleRad) * this.BALL_SPEED
-            );
-        });
+        // Set gameStarted to true but don't move the ball yet
+        // The ball will only move after the first hit
+        this.gameStarted = true;
 
         // Remove maximum velocity limit to allow continuous speed increase
         this.ball.body.setMaxVelocity(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
@@ -117,8 +124,8 @@ export default class MainScene extends Phaser.Scene {
         this.physics.add.collider(this.player1, ground);
         this.physics.add.collider(this.player2, ground);
 
-        // Debug visualization
-        this.physics.world.createDebugGraphic();
+        // Debug visualization - disabled
+        // this.physics.world.createDebugGraphic();
 
         // Create swing hitbox (initially invisible)
         this.swingHitbox = this.add.rectangle(0, 0, 150, 40, 0xff0000);
@@ -146,8 +153,8 @@ export default class MainScene extends Phaser.Scene {
             fill: '#fff'
         }).setOrigin(0.5, 0);
 
-        // Create debug menu
-        this.debugUtils.createDebugMenu();
+        // Create debug menu - disabled
+        // this.debugUtils.createDebugMenu();
 
         // Set up keyboard controls
         this.cursors = this.input.keyboard.createCursorKeys();
@@ -201,6 +208,11 @@ export default class MainScene extends Phaser.Scene {
 
     handleBallHit(ball, hitbox) {
         if (this.isSwinging) {
+            // Set firstHit to true if this is the first hit
+            if (!this.firstHit) {
+                this.firstHit = true;
+            }
+            
             // Calculate impact point and new direction
             const impactPoint = (ball.y - hitbox.y) / hitbox.height;
             const angle = -75 + (impactPoint * 150);
@@ -288,15 +300,59 @@ export default class MainScene extends Phaser.Scene {
       // Check collision with player1
       if (this.physics.overlap(this.ball, this.player1) && this.ballOwner !== this.player1) {
         console.log('Player 1 hit by ball!');
-        // Player loses a life when hit by the ball
-        this.resetBallPosition();
+        this.player1Lives--;
+        this.player1LivesText.setText(`Player 1: ${this.player1Lives} ❤️`);
+        
+        if (this.player1Lives <= 0) {
+          // Game over - Player 2 wins
+          const gameOverText = this.add.text(this.game.config.width / 2, this.game.config.height / 2, 'Game Over - Player 2 Wins!', {
+            fontSize: '64px',
+            fill: '#ff0000',
+            backgroundColor: '#000000',
+            padding: { x: 20, y: 10 }
+          }).setOrigin(0.5);
+          
+          // Reset game after 2 seconds
+          this.time.delayedCall(2000, () => {
+            gameOverText.destroy();
+            this.player1Lives = 5;
+            this.player2Lives = 5;
+            this.player1LivesText.setText(`Player 1: ${this.player1Lives} ❤️`);
+            this.player2LivesText.setText(`Player 2: ${this.player2Lives} ❤️`);
+            this.resetBallPosition();
+          });
+        } else {
+          this.resetBallPosition();
+        }
       }
       
       // Check collision with player2
       if (this.physics.overlap(this.ball, this.player2) && this.ballOwner !== this.player2) {
         console.log('Player 2 hit by ball!');
-        // AI loses a life when hit by the ball
-        this.resetBallPosition();
+        this.player2Lives--;
+        this.player2LivesText.setText(`Player 2: ${this.player2Lives} ❤️`);
+        
+        if (this.player2Lives <= 0) {
+          // Game over - Player 1 wins
+          const gameOverText = this.add.text(this.game.config.width / 2, this.game.config.height / 2, 'Game Over - Player 1 Wins!', {
+            fontSize: '64px',
+            fill: '#ff0000',
+            backgroundColor: '#000000',
+            padding: { x: 20, y: 10 }
+          }).setOrigin(0.5);
+          
+          // Reset game after 2 seconds
+          this.time.delayedCall(2000, () => {
+            gameOverText.destroy();
+            this.player1Lives = 5;
+            this.player2Lives = 5;
+            this.player1LivesText.setText(`Player 1: ${this.player1Lives} ❤️`);
+            this.player2LivesText.setText(`Player 2: ${this.player2Lives} ❤️`);
+            this.resetBallPosition();
+          });
+        } else {
+          this.resetBallPosition();
+        }
       }
     }
     
@@ -448,6 +504,11 @@ export default class MainScene extends Phaser.Scene {
         
         // Add collision detection for AI swing
         const aiSwingCollider = this.physics.add.overlap(this.ball, aiSwingHitbox, (ball, hitbox) => {
+            // Set firstHit to true if this is the first hit
+            if (!this.firstHit) {
+                this.firstHit = true;
+            }
+            
             // Calculate impact point and new direction
             const impactPoint = (ball.y - hitbox.y) / hitbox.height;
             const angle = -75 + (impactPoint * 150);
@@ -469,6 +530,7 @@ export default class MainScene extends Phaser.Scene {
     
             // Update ball ownership and color
             this.ballOwner = this.player2;
+            this.ball.setFillStyle(this.player2.fillColor); // Set ball color to match AI player color
             
             // Check for hit stop effect
             if (newSpeed > this.HIT_STOP_THRESHOLD && !this.isHitStopped) {
