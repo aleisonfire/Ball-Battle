@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">ball-battle</string>
-    <string name="title_activity_main">ball-battle</string>
-    <string name="package_name">com.ballbattle.app</string>
-    <string name="custom_url_scheme">com.ballbattle.app</string>
-</resources>
