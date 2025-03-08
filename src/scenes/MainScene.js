@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import DebugUtils from '/scripts/DebugUtils';
+import DebugUtils from '../scripts/DebugUtils';
 
 export default class MainScene extends Phaser.Scene {
     constructor() {
