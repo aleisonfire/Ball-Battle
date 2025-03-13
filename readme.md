@@ -5,6 +5,27 @@
 
 This game is designed to be both competitive and engaging, appealing to fans of fast-paced action games while ensuring ease of play on touch screens and traditional keyboard/mouse setups. Whether you're on the go with your phone or at your desk with a browser, *Ball Battle* delivers a consistent and exciting gameplay experience.
 
+## Development Approach
+The development of *Ball Battle* follows a structured, phased approach:
+
+- **Phase 1: Core Infrastructure and Mechanics** (Current Phase)
+  - We are currently focusing on building the foundational game infrastructure, physics engine, and core gameplay mechanics.
+  - During this phase, simple geometric shapes (rectangles, circles) are used as placeholders for visual elements.
+  - This approach allows us to perfect the game feel, collision detection, and player controls before investing in visual assets.
+  - The priority is ensuring that the ball physics, player movement, and hit detection work flawlessly.
+
+- **Phase 2: Visual Implementation**
+  - Once the core mechanics are solid, we'll integrate proper sprites and animations.
+  - Character sprites, ball designs, and environmental elements will replace the geometric placeholders.
+  - Animations for player movement, ball effects, and impact visuals will be added.
+  - The visual style will maintain consistency with the game's fast-paced nature.
+
+- **Phase 3: Polish and Refinement**
+  - Final phase will focus on UI refinement, performance optimization, and platform-specific adjustments.
+  - Additional visual effects, sound design, and gameplay feedback will enhance the player experience.
+
+This phased approach ensures that the game's foundation is rock-solid before adding the visual layer, resulting in a more stable and enjoyable final product.
+
 ## Key Features
 - **Cross-Platform Compatibility:** Play on mobile devices or web browsers with no compromise in quality or experience.
 - **Intuitive Controls:** Touch-based controls for mobile and keyboard/mouse inputs for web, optimized for accessibility and precision.

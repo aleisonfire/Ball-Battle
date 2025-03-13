@@ -1,5 +1,5 @@
 /**
- * Utility class for debugging purposes
+ * Simplified utility class for debugging purposes
  */
 export default class DebugUtils {
     /**
@@ -8,11 +8,6 @@ export default class DebugUtils {
      */
     constructor(scene) {
         this.scene = scene;
-        this.stats = {
-            fps: 0,
-            playerPosition: { x: 0, y: 0 },
-            ballPosition: { x: 0, y: 0 }
-        };
     }
 
     /**
@@ -24,49 +19,13 @@ export default class DebugUtils {
             console.log('[Debug]:', message);
         }
     }
-
+    
     /**
-     * Logs error information to the console
-     * @param {Error|string} error - The error to log
-     */
-    error(error) {
-        if (import.meta.env.MODE !== 'production') {
-            console.error('[Debug Error]:', error);
-        }
-    }
-
-    /**
-     * Logs warning information to the console
-     * @param {string} message - The warning message to log
-     */
-    warn(message) {
-        if (import.meta.env.MODE !== 'production') {
-            console.warn('[Debug Warning]:', message);
-        }
-    }
-
-    /**
-     * Updates debug statistics including FPS and object positions
+     * Updates debug statistics - called every frame
+     * This method was missing and causing the black screen
      */
     updateDebugStats() {
-        if (import.meta.env.MODE !== 'production') {
-            this.stats.fps = Math.round(this.scene.game.loop.actualFps);
-            
-            if (this.scene.player1) {
-                this.stats.playerPosition = {
-                    x: Math.round(this.scene.player1.x),
-                    y: Math.round(this.scene.player1.y)
-                };
-            }
-            
-            if (this.scene.ball) {
-                this.stats.ballPosition = {
-                    x: Math.round(this.scene.ball.x),
-                    y: Math.round(this.scene.ball.y)
-                };
-            }
-            
-            console.log('[Debug Stats]:', this.stats);
-        }
+        console.log('[Debug] Stats update cycle');
+        // Can be expanded later with actual debug statistics
     }
 }

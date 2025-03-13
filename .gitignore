@@ -39,3 +39,5 @@ Thumbs.db
 *.7z
 *.iso
 *.dmg
+# Local Netlify folder
+.netlify
